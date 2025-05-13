@@ -10,6 +10,7 @@ from collections import Counter
 from pathlib import Path
 import requests
 from shutil import copyfileobj
+from bs4 import Doctype
 
 class VetraSpecFieldRenderer(PHPFieldRenderer):
     def render_html_escape(self, value):
@@ -31,7 +32,7 @@ class VetraSpecFieldRenderer(PHPFieldRenderer):
             f"isset(${self.name})",
             f'"/docs/sigs/${self.name}"'
         )}"/>
-        <vs-signature backed-by="{escape(self.name)}" style='{self.render_style_attr_value()} aria-label='{escape(self.label)}' {sig_type_params}></vs-signature>
+        <vs-signature backed-by="{escape(self.name)}" style='{self.render_style_attr_value()}' aria-label='{escape(self.label)}' {sig_type_params}></vs-signature>
         """
 
 FieldRenderer.set_render_type(VetraSpecFieldRenderer)
@@ -64,11 +65,16 @@ def field_rename(name:str, field:_FieldWrapper):
 
 
 def post_process(soup:TemplateSoup):
+    for item in soup.contents:
+        if isinstance(item, Doctype):
+            item.extract()
     for el in soup.find_all(class_='pf'):
         el['class'].append('form-page')
         el['class'].remove('pf')
     for el in soup.find_all('a'):
         el['target'] = '_blank'
+    for el in soup.find_all('meta'):
+        el.decompose()
     head = soup.find('head')
     for child in head.children:
         if child.name != 'style':
@@ -162,12 +168,52 @@ def calc_form_pages(pdf: Pdf, form: Form):
         elif last_page is None:
             # No widgets, and we have't seen any widgets yet either
             first_page = pageno+1
-        print(pageno, first_page, last_page)
     return first_page, last_page
 
 
-    
+def make_formdef_file(form_file, instructions_url=None):
+    form_file.write(
+        "<?php return new class ($form_name, $vet_id, $id) extends \Vetraspec\Forms\Form{\n"
+    )
+    if instructions_url is not None:
+        form_file.write(
+            f"    public $instructions = '{instructions_url}';\n"
+        )
+    form_file.write(
+        "    function new_form($vetData, $questionnaire){\n"
+        "        // Fill the array below with any values that need mapped from the veteran's data. Some\n"
+        "        // guesses have been made, but should be reviewed. Delete any items that are not needed.\n"
+        "        // Pull additional data from the database as needed.\n"
+        "        return [\n"
+    )
+    for real_name, fieldname in mapping.items():
+        form_file.write(
+            f"            '{fieldname}'=>{_guess_vs_mapping(real_name)},\n"
+        )
+    form_file.write(
+        "        ];\n"
+        "    }\n"
+        "};"
+    )
 
+_vs_mapping_guesses = (
+    (re.compile('(dob|birth).?month', re.I), "normalizeDate($vetData['dob'], 'm')"),
+    (re.compile('(dob|birth).?day', re.I), "normalizeDate($vetData['dob'], 'd')"),
+    (re.compile('(dob|birth).?year', re.I), "normalizeDate($vetData['dob'], 'Y')"),
+    (re.compile('va.?(file|claim).?number', re.I), "$vetData['va_claim_num']"),
+    (re.compile('vet(eran)?s?.?last.?name', re.I), "$vetData['f_name']"),
+    (re.compile('vet(eran)?s?.?middle.?(name|initial)', re.I), "$vetData['m_name']"),
+    (re.compile('vet(eran)?s?.?first.?name', re.I), "$vetData['l_name']"),
+    (re.compile('vet(eran)?s?.?(social.?security(.?number)?|ssn).?first.?(three|3)', re.I), "explodeFixed('-', $vetData['ssn'])[0]"),
+    (re.compile('vet(eran)?s?.?(social.?security(.?number)?|ssn).?(second|middle).?(two|2)', re.I), "explodeFixed('-', $vetData['ssn'])[1]"),
+    (re.compile('vet(eran)?s?.?(social.?security(.?number)?|ssn).?last.?(four|4)', re.I), "explodeFixed('-', $vetData['ssn'])[2]"),
+    (re.compile('vet(eran)?s?.?(social.?security(.?number)?|ssn)', re.I), "$vetData['ssn']"),
+)
+def _guess_vs_mapping(name):
+    for regex, value in _vs_mapping_guesses:
+        if regex.search(name):
+            return value
+    return 'null'
 
 @click.command('make-form')
 @click.argument('codename')
@@ -179,6 +225,9 @@ def cli(codename, url, output_dir, **kwargs):
     map_filename = f'{codename}.fillable.php'
     sign_filename = f'{codename}.vetsign.php'
     template_filename = f'{codename}.tpl.php'
+    formdef_filename = f'{codename}.form.php'
+    instructions_filename = f'{codename}.instructions.pdf'
+
     result = requests.get(url, stream=True)
     result.raise_for_status()
     with open(output_dir / pdf_filename, 'w+b') as pdf_file:
@@ -186,18 +235,46 @@ def cli(codename, url, output_dir, **kwargs):
         pdf_file.seek(0)
         pdf = Pdf.open(pdf_file)
         form = Form(pdf)
-    first_page, last_page = calc_form_pages(pdf, form)
+        # Find page rage of real form
+        first_page, last_page = calc_form_pages(pdf, form)
+        # Extract the instructional pages from before/after the form
+        has_instructions = False
+        inst_pdf = Pdf.new()
+        for pageno, page in enumerate(pdf.pages, start=1):
+            if pageno < first_page or pageno > last_page:
+                has_instructions = True
+                inst_pdf.pages.append(page)
+        inst_pdf.remove_unreferenced_resources()
+        if has_instructions:
+            inst_pdf.save(output_dir / instructions_filename, min_version=max(inst_pdf.pdf_version, pdf.pdf_version))
+        inst_pdf.close()
+        # Create the other, vetraspec-specific files
+        with open(output_dir / map_filename, 'w') as map_file:
+            sigs = make_map_file(pdf, form, map_file)
+        with open(output_dir / sign_filename, 'w') as sign_file:
+            make_vetsign_file(pdf, codename, sign_file, sigs)
+        with open(output_dir / formdef_filename, 'w') as formdef_file:
+            make_formdef_file(formdef_file, f"/forms/{instructions_filename}" if has_instructions else None)
+    # Make the HTML version of the PDF
     soup = make_html(output_dir / pdf_filename, sort_widgets=True, rename_fields=field_rename, zoom=2, from_page=first_page, to_page=last_page, **kwargs)
+    with open(output_dir / (template_filename+'.raw.html'), 'w') as file:
+        file.write(soup.prettify())
     post_process(soup)
     with open(output_dir / template_filename, 'w') as file:
-        file.write(str(soup))
-    del soup
-    # Create the other, vetraspec-specific files
-    
-    with open(output_dir / map_filename, 'w') as map_file:
-        sigs = make_map_file(pdf, form, map_file)
-    with open(output_dir / sign_filename, 'w') as sign_file:
-        make_vetsign_file(pdf, codename, sign_file, sigs)
+        file.write(soup.prettify())
+    click.echo(
+        click.style("The conversion process is complete!\n\n", fg='green'),
+        "Some manual work is still needed to create a fully-functional form in VetraSpec:\n"
+        f"1. The data mapping in {map_filename} will need to be updated.\n"
+        f"2. The correct signature will need to be selected in {sign_filename}.\n"
+        f"3. The field order in {template_filename} may need to be adjusted.\n"
+        f"4. You will need to determine how the form is to be printed. Either,\n"
+        f"   a. Use the `fill-form` printer option, or\n"
+        f"   b. Manually build a print version ({template_filename}.raw.html can be used as a base).\n"
+        f"5. Perform other customizations if needed, such as to suport Benefits Claims.\n"
+        f"6. Copy the files into the appropriate places.\n"
+        f"6. Create or update the `resources.form_config` entry.\n"
+    )
 
 
 cli()

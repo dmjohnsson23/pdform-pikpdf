@@ -66,7 +66,7 @@ class FieldRenderer:
 
     def render_checkbox(self):
         """Render a checkbox using the properties of this renderer"""
-        return f"""<input type='checkbox' {self.render_basic_attrs()} {self.render_value_checked_if()}/>\n"""
+        return f"""<input type='checkbox' {self.render_basic_attrs()} {self.render_value_checked_if()}/>"""
 
     def render_file(self):
         """Render a file input using the properties of this renderer"""
@@ -74,30 +74,29 @@ class FieldRenderer:
 
     def render_password(self):
         """Render a password input using the properties of this renderer"""
-        return f"""<input type='password' {self.render_basic_attrs()} {self.render_value_attr()}/>\n"""
+        return f"""<input type='password' {self.render_basic_attrs()} {self.render_value_attr()}/>"""
 
     def render_radio(self):
         """Render a radio button using the properties of this renderer"""
-        return f"""<input type='radio' {self.render_basic_attrs()} {self.render_value_checked_if()}/>\n"""
+        return f"""<input type='radio' {self.render_basic_attrs()} {self.render_value_checked_if()}/>"""
 
     def render_select(self):
         """Render a select element using the properties of this renderer"""
-        nl='\n'
         return f"""<select {self.render_basic_attrs()}>
-        {nl.join(f"<option>{opt.display_value}</option>" for opt in self.field.options)}
+        {''.join(f"<option>{opt.display_value}</option>" for opt in self.field.options)}
         </select>"""
 
     def render_signature(self):
         """Render a signature field using the properties of this renderer"""
-        return f"""<input type='file' data-real-type='signature' {self.render_basic_attrs()}/>\n"""
+        return f"""<input type='file' data-real-type='signature' {self.render_basic_attrs()}/>"""
 
     def render_text(self):
         """Render a text field using the properties of this renderer"""
-        return f"""<input type='text' {self.render_basic_attrs()} {self.render_value_attr()}/>\n"""
+        return f"""<input type='text' {self.render_basic_attrs()} {self.render_value_attr()}/>"""
 
     def render_textarea(self):
         """Render a multiline text field using the properties of this renderer"""
-        return f"""<textarea {self.render_basic_attrs()}>{self.render_value_content()}</textarea>\n"""
+        return f"""<textarea {self.render_basic_attrs()}>{self.render_value_content()}</textarea>"""
 
     def render_basic_attrs(self):
         """Render the basic attributes (name and style) to apply to the field, regardless of type."""
