@@ -1,7 +1,6 @@
 import click
-from make_html.make_html import make_html
-from make_html.field_renderer import FieldRenderer, PHPFieldRenderer
-from make_html.template_soup import TemplateSoup
+from pdform.make_html import make_html, FieldRenderer, PHPFieldRenderer
+from pdform.make_html.template_soup import TemplateSoup
 from html import escape
 import re
 from pikepdf import Pdf, Name, Rectangle, Annotation

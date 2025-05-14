@@ -2,6 +2,29 @@ from io import BytesIO
 from pikepdf import Name, Pdf, Page, Rectangle
 from pikepdf.form import Form, TextField, CheckboxField, RadioButtonGroup, ChoiceField, SignatureField, ExtendedAppearanceStreamGenerator
 from PIL import Image
+import click
+
+
+@click.command('fill-form', help='Populate the template with the provided data')
+@click.argument('template', type=click.File(), required=True)
+@click.argument('output', type=click.File('w'), required=True)
+@click.argument('data-file', type=click.File(), default='-')
+@click.option('--data-format', help='The format of the data file.', type=click.Choice(('json',)), default='json')
+@click.option('--set', '-s', 'cli_data', nargs=2, multiple=True, help='Set a field value in the form. Using this option causes the data file to be ignored.')
+def cli(template, output, data_file, data_format, cli_data):
+    if cli_data:
+        data = dict(cli_data)
+    else:
+        data = parse_data(data_format, data_file)
+    with Pdf.open(template) as pdf:
+        fill_form(pdf, data)
+        pdf.save(output)
+
+
+def parse_data(format, file):
+    if format == 'json':
+        from json import load
+        return load(file)
 
 
 def img_to_pdf(img) -> Pdf:
@@ -51,8 +74,8 @@ def fill_form(pdf:Pdf, data:dict):
         * For text fields, provide the value to set
         * For checkboxes, provide a boolean
         * For radio buttons, provide the value in the button's AP.N dictionary
-        * For signature fields, provide the path to an image which will be stamped in its place (real
-          cryptographic signatures are not supported)
+        * For signature fields, provide the path to an image which will be stamped in its place
+          (real cryptographic signatures are not supported)
     """
     # Populate form
     form = Form(pdf, ExtendedAppearanceStreamGenerator)

@@ -5,10 +5,14 @@ import re
 
 @click.command
 @click.argument('path', type=click.File('rb'))
-@click.option('--type', '-t', 'filter_types', multiple=True, type=click.Choice(('text', 'checkbox', 'radio', 'choice', 'signature')))
-@click.option('--name', '-n', 'filter_name', multiple=True, type=click.STRING)
-@click.option('--label', '-l', 'filter_label', multiple=True, type=click.STRING)
-@click.option('--names-only/--full-info', 'names_only', default=False)
+@click.option('--text', 'filter_types', help='Show text fields. (If no type filters are provided, all will be implied true)', multiple=True, flag_value='text')
+@click.option('--checkbox', 'filter_types', help='Show checkbox fields. (If no type filters are provided, all will be implied true)', multiple=True, flag_value='checkbox')
+@click.option('--radio', 'filter_types', help='Show radio fields. (If no type filters are provided, all will be implied true)', multiple=True, flag_value='radio')
+@click.option('--choice', 'filter_types', help='Show choice fields. (If no type filters are provided, all will be implied true)', multiple=True, flag_value='choice')
+@click.option('--signature', 'filter_types', help='Show signature fields. (If no type filters are provided, all will be implied true)', multiple=True, flag_value='signature')
+@click.option('--name', '-n', 'filter_name', help='Show only fields with a name containing the given string. Use slashes to build a regex.', multiple=True, type=click.STRING)
+@click.option('--label', '-l', 'filter_label', help='Show only fields with a label containing the given string. Use slashes to build a regex.',multiple=True, type=click.STRING)
+@click.option('--names-only/--full-info', 'names_only', help='Determines if detailed information should be shown, or only field names.', default=False)
 def describe(path, filter_types, filter_name, filter_label, names_only):
     """
     Describe the fields in a form

@@ -3,9 +3,10 @@ from .template_soup import TemplateSoup
 from pikepdf import Pdf, Annotation
 from pikepdf.form import Form, TextField, CheckboxField, RadioButtonGroup, ChoiceField, SignatureField
 from .field_renderer import FieldRenderer
+from typing import Type
 
 
-def add_form_fields(soup: TemplateSoup, pdf:Pdf, form: Form, zoom: int|float = 1, rename_fields = {}, field_labels = {}, sort_widgets=False, start_page:int=1):
+def add_form_fields(soup: TemplateSoup, pdf:Pdf, form: Form, zoom: int|float = 1, rename_fields = {}, field_labels = {}, sort_widgets=False, start_page:int=1, field_renderer_class:Type[FieldRenderer]=FieldRenderer):
     """
     :param rename_fields: A mapping of PDF field names to desired HTML field names.
     :param field_labels: A mapping of PDF field names to human-readable labels.
@@ -32,28 +33,28 @@ def add_form_fields(soup: TemplateSoup, pdf:Pdf, form: Form, zoom: int|float = 1
             i += 1
             if field.is_radio_button:
                 field = RadioButtonGroup(form, field)
-                input = FieldRenderer.make('radio', field)
+                input = field_renderer_class.make('radio', field)
             elif field.is_checkbox:
                 field = CheckboxField(form, field)
-                input = FieldRenderer.make('checkbox', field)
+                input = field_renderer_class.make('checkbox', field)
             elif field.is_pushbutton:
-                input = FieldRenderer.make('button', field)
+                input = field_renderer_class.make('button', field)
             elif field.is_text:
                 field = TextField(form, field)
                 if field.is_multiline:
-                    input = FieldRenderer.make('textarea', field)
+                    input = field_renderer_class.make('textarea', field)
                 elif field.is_password:
-                    input = FieldRenderer.make('password', field)
+                    input = field_renderer_class.make('password', field)
                 elif field.is_password:
-                    input = FieldRenderer.make('file', field)
+                    input = field_renderer_class.make('file', field)
                 else:
-                    input = FieldRenderer.make('text', field)
+                    input = field_renderer_class.make('text', field)
             elif field.is_choice:
                 field = ChoiceField(form, field)
-                input = FieldRenderer.make('select', field)
+                input = field_renderer_class.make('select', field)
             elif field.field_type == "/Sig":
                 field = SignatureField(form, field)
-                input = FieldRenderer.make('signature', field)
+                input = field_renderer_class.make('signature', field)
             else:
                 continue
             name = field.fully_qualified_name
