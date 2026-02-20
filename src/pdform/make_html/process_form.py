@@ -4,6 +4,7 @@ from pikepdf import Pdf, Annotation
 from pikepdf.form import Form, TextField, CheckboxField, RadioButtonGroup, ChoiceField, SignatureField
 from .field_renderer import FieldRenderer
 from typing import Type
+from functools import cmp_to_key
 
 
 def add_form_fields(soup: TemplateSoup, pdf:Pdf, form: Form, zoom: int|float = 1, rename_fields = {}, field_labels = {}, sort_widgets=False, start_page:int=1, field_renderer_class:Type[FieldRenderer]=FieldRenderer):
@@ -25,8 +26,10 @@ def add_form_fields(soup: TemplateSoup, pdf:Pdf, form: Form, zoom: int|float = 1
         if not widgets: continue
         html_page = html_pages[page_no-start_page]
         fieldset = soup.new_tag('div', attrs={'class':'form-inputs'})
-        if sort_widgets:
-            widgets = sorted(widgets, key=lambda widget: (-round(widget.rect.ury, -1), round(widget.rect.llx, -1)))
+        if callable(sort_widgets):
+            widgets = sort_widgets(widgets)
+        elif sort_widgets is True:
+            widgets = sorted(widgets, key=cmp_to_key(_cmp_widgets))
         for widget in widgets:
             widget: Annotation
             field = form.get_field_for_annotation(widget)
@@ -124,3 +127,38 @@ def _auto_rename(name:str):
     if name[0].isdigit():
         return f"_{name}"
     return name
+
+
+def _cmp_widgets(wig1: Annotation, wig2: Annotation):
+    rect1 = wig1.rect
+    rect2 = wig2.rect
+    w1_then_w2 = -1
+    w2_then_w1 = 1
+    if rect1.lly >= rect2.ury:
+        # Bottom of wig1 above top of wig2; wig2 is after wig1
+        return w1_then_w2
+    if rect1.ury <= rect2.lly:
+        # Top of wig1 below bottom of wig2; wig2 is before wig1
+        return w2_then_w1
+    # The two are in line, or at leaest overlapping in the y direction; compare x values
+    if rect1.urx <= rect2.llx:
+        # Right of wig1 before left of wig2; wig2 is after wig1
+        return w1_then_w2
+    if rect1.llx >= rect2.urx:
+        # Left of wig1 after right of wig2; wig2 is before wig1
+        return w2_then_w1
+    # Rectangles overlap in both x and y directions, let's just compare top-left corner
+    if rect1.ury > rect2.ury:
+        # rect1 higher than rect2; wig2 is after wig1
+        return w1_then_w2
+    if rect1.ury < rect2.ury:
+        # rect1 lower than rect2; wig2 is before wig1
+        return w2_then_w1
+    if rect1.llx > rect2.llx:
+        # rect1 further than rect2; wig2 is before wig1
+        return w2_then_w1
+    if rect1.llx < rect2.llx:
+        # rect2 further than rect1; wig2 is after wig1
+        return w1_then_w2
+    # Okay, we give up, they share the same upper-left
+    return 0
