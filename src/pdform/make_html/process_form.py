@@ -3,11 +3,11 @@ from .template_soup import TemplateSoup
 from pikepdf import Pdf, Annotation
 from pikepdf.form import Form, TextField, CheckboxField, RadioButtonGroup, ChoiceField, SignatureField
 from .field_renderer import FieldRenderer
-from typing import Type
+from typing import Type, Union
 from functools import cmp_to_key
 
 
-def add_form_fields(soup: TemplateSoup, pdf:Pdf, form: Form, zoom: int|float = 1, rename_fields = {}, field_labels = {}, sort_widgets=False, start_page:int=1, field_renderer_class:Type[FieldRenderer]=FieldRenderer):
+def add_form_fields(soup: TemplateSoup, pdf:Pdf, form: Form, zoom: Union[int,float] = 1, rename_fields = {}, field_labels = {}, sort_widgets=False, start_page:int=1, field_renderer_class:Type[FieldRenderer]=FieldRenderer):
     """
     :param rename_fields: A mapping of PDF field names to desired HTML field names.
     :param field_labels: A mapping of PDF field names to human-readable labels.

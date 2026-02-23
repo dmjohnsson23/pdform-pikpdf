@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 from bs4.element import PreformattedString
 from string import Template
 from secrets import token_hex
+from typing import Optional
 
 class TemplateSoup(BeautifulSoup):
     def __init__(self, *args, **kwargs):
@@ -15,7 +16,7 @@ class TemplateSoup(BeautifulSoup):
     def prettify(self, *args, **kwargs):
         return Template(super().prettify(*args, **kwargs)).safe_substitute(self._substitutions)
     
-    def make_placeholder(self, name:str|None = None, value=None)->'Placeholder':
+    def make_placeholder(self, name:Optional[str] = None, value=None)->'Placeholder':
         if name is None:
             name = substitution_name = 'p'+token_hex(16)
         else:

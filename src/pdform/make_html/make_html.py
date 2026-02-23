@@ -10,9 +10,10 @@ from pikepdf.form import Form
 import re
 from base64 import urlsafe_b64decode
 from io import StringIO
+from typing import Optional, Union
 
 
-def make_html(path:str|Path, *, pdf2html:str='pdf2htmlex', zoom:int|float=1, from_page:int|None=None, to_page:int|None=None, **process_form_args):
+def make_html(path:Union[str,Path], *, pdf2html:str='pdf2htmlex', zoom:Union[int,float]=1, from_page:Optional[int]=None, to_page:Optional[int]=None, **process_form_args):
     output_path = tempfile.mktemp()
     
     pdf2html_options = [

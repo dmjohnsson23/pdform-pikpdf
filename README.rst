@@ -15,7 +15,7 @@ Uses `Pikepdf <https://pikepdf.readthedocs.io/en/latest/index.html>`_.
 Describing Forms
 ----------------
 
-The :command:`pdform describe` command can be used to get information about a PDF form, such as the names and types of fields, allowable options, and so forth. Use `pdform describe --help` for command-line options.
+The ``pdform describe`` command can be used to get information about a PDF form, such as the names and types of fields, allowable options, and so forth. Use ``pdform describe --help`` for command-line options.
 
 .. code-block:: shell
 
@@ -61,7 +61,7 @@ By default, it will show every field in the form, together with all the relevant
 Filling Forms
 -------------
 
-Filling forms is done using the `pdform fill-form` command. Typically, this will be done using JSON-formatted data, such as:
+Filling forms is done using the ``pdform fill-form`` command. Typically, this will be done using JSON-formatted data, such as:
 
 .. code-block:: json
 
@@ -95,7 +95,7 @@ Converting to HTML relies on `pdf2htmlEX <https://pdf2htmlex.github.io/pdf2htmlE
 This function can be activated in one of two ways:
 
 
-1. The :command:`pdform make-html` command. Use :command:`pdform make-html --help` for details.
+1. The ``pdform make-html`` command. Use ``pdform make-html --help`` for details.
 2. Directly via Python.
 
 The command-line interface is sufficient for basic usage. It provides a handful of different output formats: plain HTML, Jinja, and PHP.
